@@ -2,7 +2,7 @@
   "expo": {
     "name": "TelemetrieSlalom",
     "slug": "TelemetrieSlalom",
-    "version": "1.0.0",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "telemetrieslalom",
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.tao.petit.TelemetrieSlalom"
+      "package": "com.TelemetrieSlalom.myapp"
     },
     "web": {
       "output": "static",
@@ -45,17 +45,17 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "d551dcc0-e7bc-41f2-9292-26ce236119fc"
-      }
-    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/d551dcc0-e7bc-41f2-9292-26ce236119fc"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fcdf6e4c-6c4b-42de-9091-c0229599ecb6"
+      }
     }
   }
 }

@@ -95,30 +95,53 @@ export default function App() {
     return `${m}:${s}`;
   };
 
-  // --- CALIBRAGE DES CAPTEURS (FAIRE LE ZÉRO) ---
+  // --- CALIBRAGE DES CAPTEURS PRO (TARE PAR MOYENNE) ---
   const calibrateSensors = () => {
     setIsCalibrating(true);
-    let calibSub: any = null; // On prépare la destruction
+    DeviceMotion.setUpdateInterval(100); // 10 relevés par seconde
 
+    let samples: { gamma: number, beta: number }[] = [];
+    let calibSub: any = null;
+
+    // 1. On lance l'écoute continue
     calibSub = DeviceMotion.addListener((motionData) => {
       const gamma = motionData.rotation?.gamma ?? 0;
       const beta = motionData.rotation?.beta ?? 0;
-
-      // Conversion stricte Radians -> Degrés
-      const rawRoll = gamma * (180 / Math.PI);
-      const rawPitch = beta * (180 / Math.PI);
-
-      setOffsetRoll(rawRoll);
-      setOffsetPitch(rawPitch);
-
-      setIsCalibrating(false);
-      Alert.alert("Bateau Calibré 📐", `Nouveau zéro enregistré :\nGîte: ${rawRoll.toFixed(1)}° | Assiette: ${rawPitch.toFixed(1)}°`);
-
-      // On tue le capteur avec un micro-délai pour être sûr qu'il ne tourne plus en fond
-      setTimeout(() => {
-        if (calibSub) calibSub.remove();
-      }, 50);
+      samples.push({ gamma, beta });
     });
+
+    // 2. On laisse le capteur acquérir des données pendant 1.5 seconde
+    setTimeout(() => {
+      if (calibSub) calibSub.remove(); // On coupe le capteur
+
+      if (samples.length > 0) {
+        // 3. On jette les 3 premières valeurs (les "fantômes" du réveil du capteur)
+        const validSamples = samples.length > 3 ? samples.slice(3) : samples;
+
+        // 4. On fait la moyenne des valeurs restantes pour une précision absolue
+        const sumGamma = validSamples.reduce((acc, val) => acc + val.gamma, 0);
+        const sumBeta = validSamples.reduce((acc, val) => acc + val.beta, 0);
+
+        const avgGamma = sumGamma / validSamples.length;
+        const avgBeta = sumBeta / validSamples.length;
+
+        // 5. Conversion en degrés
+        const rawRoll = avgGamma * (180 / Math.PI);
+        const rawPitch = avgBeta * (180 / Math.PI);
+
+        setOffsetRoll(rawRoll);
+        setOffsetPitch(rawPitch);
+
+        setIsCalibrating(false);
+        Alert.alert(
+          "Bateau Calibré 📐",
+          `Zéro stabilisé sur ${validSamples.length} mesures :\nGîte: ${rawRoll.toFixed(1)}° | Assiette: ${rawPitch.toFixed(1)}°`
+        );
+      } else {
+        setIsCalibrating(false);
+        Alert.alert("Erreur", "Le capteur n'a rien renvoyé.");
+      }
+    }, 1500); // Temps d'attente : 1,5 seconde
   };
 
   // --- ACQUISITION MULTI-CAPTEURS (IMU + GPS) ---
