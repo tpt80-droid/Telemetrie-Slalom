@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
 import * as FileSystem from 'expo-file-system/legacy';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import * as DocumentPicker from 'expo-document-picker';
 
 
 interface SensorData {
@@ -358,6 +359,68 @@ export default function App() {
     }
   };
 
+  // --- IMPORTATION D'UNE SÉANCE ATHLÈTE (CSV) ---
+  const importSession = async () => {
+    try {
+      // 1. Ouvre l'explorateur de fichiers du téléphone
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', '*/*'], // Accepte les CSV
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return; // L'utilisateur a annulé
+      }
+
+      const fileUri = result.assets[0].uri;
+
+      // 2. Lecture du fichier brut
+      const fileContent = await FileSystem.readAsStringAsync(fileUri, { 
+        encoding: FileSystem.EncodingType.UTF8 
+      });
+
+      // 3. Découpage des lignes
+      const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
+      
+      // On vérifie que c'est bien notre format (il doit y avoir au moins l'en-tête et une ligne)
+      if (lines.length < 2 || !lines[0].includes('Roll(deg)')) {
+        Alert.alert("Format invalide", "Ce fichier ne semble pas être un export Slalom Perf valide.");
+        return;
+      }
+
+      // 4. Traduction du texte en données graphiques
+      const importedData: SensorData[] = [];
+      
+      // On boucle sur toutes les lignes (en ignorant la première ligne [i=0] qui est l'en-tête)
+      for (let i = 1; i < lines.length; i++) {
+        const columns = lines[i].split(',');
+        if (columns.length >= 6) {
+          importedData.push({
+            timestamp: new Date(columns[0]).getTime(), // Heure absolue
+            timeSec: parseFloat(columns[1]),
+            roll: parseFloat(columns[2]),
+            pitch: parseFloat(columns[3]),
+            accel: parseFloat(columns[4]),
+            speed: parseFloat(columns[5]),
+            yaw: 0 // (Optionnel si tu ne t'en sers pas)
+          });
+        }
+      }
+
+      // 5. Chargement des données dans l'application
+      setData(importedData);
+      setChrono(importedData[importedData.length - 1].timeSec); // Met à jour le chrono total
+      setActiveTab('analysis'); // Bascule automatiquement sur l'écran des graphiques !
+      setSliderIndex(0);
+      
+      Alert.alert("Succès", `Séance importée ! (${importedData.length} points de données)`);
+
+    } catch (error) {
+      Alert.alert("Erreur", "Impossible de lire ce fichier.");
+      console.error(error);
+    }
+  };
+
   const exportPDF = async () => {
     const times = data.map(d => sanitize(d.timeSec));
     const rolls = data.map(d => sanitize(d.roll));
@@ -667,6 +730,23 @@ export default function App() {
         ) : null}
 
         {/* --- VUE 3 : HISTORIQUE --- */}
+        {/* --- ONGLET HISTORIQUE & IMPORT --- */}
+        {activeTab === 'history' && (
+          <View style={{flex: 1, width: '100%', padding: 20}}>
+            <Text style={[styles.cardTitle, {fontSize: 18, marginBottom: 15}]}>ARCHIVES & ATHLÈTES</Text>
+            
+            {/* NOUVEAU BOUTON D'IMPORTATION */}
+            <TouchableOpacity 
+              style={[styles.btn, {backgroundColor: '#e0aaff', marginBottom: 20}]} 
+              onPress={importSession}
+            >
+              <Text style={[styles.btnText, {color: '#000'}]}>📥 IMPORTER LA SÉANCE D'UN ATHLÈTE</Text>
+            </TouchableOpacity>
+
+            {/* Le reste de ton code historique habituel (liste des runs sauvegardés, etc.) */}
+            <Text style={{color: '#666'}}>Vos sessions sauvegardées apparaîtront ici...</Text>
+          </View>
+        )}
         {activeTab === 'history' ? (
           <View style={{ width: '92%' }}>
             {savedSessions.length === 0 ? <Text style={styles.instructionText}>Aucune sauvegarde.</Text> :
