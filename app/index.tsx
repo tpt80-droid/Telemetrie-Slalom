@@ -388,21 +388,26 @@ export default function App() {
         return;
       }
 
-      // 4. Traduction du texte en données graphiques
+      // 4. Traduction et COMPRESSION (Downsampling pour éviter les crashs)
       const importedData: SensorData[] = [];
       
-      // On boucle sur toutes les lignes (en ignorant la première ligne [i=0] qui est l'en-tête)
-      for (let i = 1; i < lines.length; i++) {
+      // On fixe une limite de sécurité pour le graphique (ex: 800 points max)
+      const MAX_POINTS = 800;
+      // On calcule l'écart nécessaire. Si on a 8000 lignes, on ne prendra qu'1 ligne sur 10.
+      const step = Math.max(1, Math.floor((lines.length - 1) / MAX_POINTS));
+
+      // On boucle en sautant des lignes (i += step)
+      for (let i = 1; i < lines.length; i += step) {
         const columns = lines[i].split(',');
         if (columns.length >= 6) {
           importedData.push({
-            timestamp: new Date(columns[0]).getTime(), // Heure absolue
+            timestamp: new Date(columns[0]).getTime(),
             timeSec: parseFloat(columns[1]),
             roll: parseFloat(columns[2]),
             pitch: parseFloat(columns[3]),
             accel: parseFloat(columns[4]),
             speed: parseFloat(columns[5]),
-            yaw: 0 // (Optionnel si tu ne t'en sers pas)
+            yaw: 0
           });
         }
       }
